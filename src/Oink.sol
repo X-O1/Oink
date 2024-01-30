@@ -37,32 +37,13 @@ contract Oink is ReentrancyGuard {
         _;
     }
 
-    modifier tokenApprovedForTransfer(address token, uint256 amount) {
-        if (IERC20(token).allowance(msg.sender, address(this)) < amount) {
-            revert Oink__TokenOrAmountNotApprovedForTransfer();
-        }
-        _;
-    }
-
-    modifier nftApprovedForTransfer(address token, uint256 tokenId) {
-        if (IERC721(token).getApproved(tokenId) != msg.sender) {
-            revert Oink__TokenOrAmountNotApprovedForTransfer();
-        }
-        _;
-    }
-
     // FUNCTIONS
     function depositEther(uint256 amount) external payable moreThanZero(amount) nonReentrant {
         s_userEtherBalance[msg.sender] += amount;
         emit EtherDeposited(msg.sender, amount);
     }
 
-    function depositToken(address token, uint256 amount)
-        external
-        moreThanZero(amount)
-        tokenApprovedForTransfer(token, amount)
-        nonReentrant
-    {
+    function depositToken(address token, uint256 amount) external moreThanZero(amount) nonReentrant {
         s_userTokenBalance[msg.sender][token] += amount;
         bool success = IERC20(token).transferFrom(msg.sender, address(this), amount);
         if (!success) {
@@ -71,12 +52,7 @@ contract Oink is ReentrancyGuard {
         emit TokenDeposited(msg.sender, token, amount);
     }
 
-    function depositErc721(address nft, uint256 tokenId)
-        external
-        moreThanZero(tokenId)
-        nftApprovedForTransfer(nft, tokenId)
-        nonReentrant
-    {
+    function depositNft(address nft, uint256 tokenId) external moreThanZero(tokenId) nonReentrant {
         s_userNftBalance[msg.sender][nft] += tokenId;
         IERC721(nft).transferFrom(msg.sender, address(this), tokenId);
         emit NftDeposited(msg.sender, nft, tokenId);
