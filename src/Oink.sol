@@ -5,7 +5,7 @@ pragma solidity ^0.8.18;
  * @title Oink
  * @author https://github.com/X-O1
  * @notice Oink is an Estate planner for blockchain-based assets.
- * This contract will handle creation of user accounts, account funding, and inheritance execution.
+ * This contract will handle creation of decendant accounts, account funding, and inheritance execution.
  */
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -19,15 +19,25 @@ contract Oink is ReentrancyGuard {
     error Oink__TokenOrAmountNotApprovedForTransfer();
     error Oink__TransferFailed();
 
-    // STATE VARIABLES
-    mapping(address user => uint256 amount) private s_userEtherBalance;
-    mapping(address user => mapping(address token => uint256 amount)) private s_userTokenBalance;
-    mapping(address user => mapping(address token => uint256 tokenId)) private s_userNftBalance;
+    // TYPE DECLARATIONS
+    struct Beneficiary {
+        address mainAddress;
+        address backupAddress;
+    }
+
+    // STATE VARIABLESdecedant
+    mapping(address => uint256 amount) private s_decedantEtherBalance;
+    mapping(address decendant => mapping(address token => uint256 amount)) private s_decedantErc20Balance;
+    mapping(address decendant => mapping(address token => uint256 tokenId)) private s_decedantNftBalance;
+
+    mapping(address beneficiary => uint256 amount) private s_beneficiaryEtherAllocation;
+    mapping(address beneficiary => mapping(address token => uint256 amount)) private s_beneficiaryErc20Allocation;
+    mapping(address beneficiary => mapping(address nft => uint256 tokenId)) private s_beneficiaryNftAllocation;
 
     // EVENTS
-    event TokenDeposited(address indexed user, address indexed token, uint256 indexed amount);
-    event NftDeposited(address indexed user, address indexed nft, uint256 indexed tokenId);
-    event EtherDeposited(address indexed user, uint256 indexed amount);
+    event TokenDeposited(address indexed decendant, address indexed beneficiary, address indexed token, uint256 amount);
+    event NftDeposited(address indexed decendant, address indexed beneficiary, address indexed nft, uint256 tokenId);
+    event EtherDeposited(address indexed decendant, address indexed beneficiary, uint256 indexed amount);
 
     // MODIFIERS
     modifier moreThanZero(uint256 amount) {
@@ -38,23 +48,60 @@ contract Oink is ReentrancyGuard {
     }
 
     // FUNCTIONS
-    function depositEther(uint256 amount) external payable moreThanZero(amount) nonReentrant {
-        s_userEtherBalance[msg.sender] += amount;
-        emit EtherDeposited(msg.sender, amount);
+    function depositEther(address beneficiary, uint256 amount) external payable moreThanZero(amount) nonReentrant {
+        s_decedantEtherBalance[msg.sender] += amount;
+        s_beneficiaryEtherAllocation[beneficiary] += amount;
+        emit EtherDeposited(msg.sender, beneficiary, amount);
     }
 
-    function depositToken(address token, uint256 amount) external moreThanZero(amount) nonReentrant {
-        s_userTokenBalance[msg.sender][token] += amount;
+    function depositErc20(address beneficiary, address token, uint256 amount)
+        external
+        moreThanZero(amount)
+        nonReentrant
+    {
+        s_decedantErc20Balance[msg.sender][token] += amount;
+        s_beneficiaryErc20Allocation[beneficiary][token] += amount;
         bool success = IERC20(token).transferFrom(msg.sender, address(this), amount);
         if (!success) {
             revert Oink__TransferFailed();
         }
-        emit TokenDeposited(msg.sender, token, amount);
+        emit TokenDeposited(msg.sender, beneficiary, token, amount);
     }
 
-    function depositNft(address nft, uint256 tokenId) external moreThanZero(tokenId) nonReentrant {
-        s_userNftBalance[msg.sender][nft] += tokenId;
-        IERC721(nft).transferFrom(msg.sender, address(this), tokenId);
-        emit NftDeposited(msg.sender, nft, tokenId);
+    function depositNft(address beneficiary, address token, uint256 tokenId)
+        external
+        moreThanZero(tokenId)
+        nonReentrant
+    {
+        s_decedantNftBalance[msg.sender][token] += tokenId;
+        s_beneficiaryNftAllocation[beneficiary][token] += tokenId;
+
+        IERC721(token).transferFrom(msg.sender, address(this), tokenId);
+        emit NftDeposited(msg.sender, beneficiary, token, tokenId);
+    }
+
+    // VIEW FUNCTIONS
+    function getDecendantEtherBalance(address decendant) external view returns (uint256 amount) {
+        return s_decedantEtherBalance[decendant];
+    }
+
+    function getDecendantErc20Balance(address decendant, address token) external view returns (uint256 amount) {
+        return s_decedantErc20Balance[decendant][token];
+    }
+
+    function getDecendantNftBalance(address decendant, address token) external view returns (uint256 tokenId) {
+        return s_decedantNftBalance[decendant][token];
+    }
+
+    function getBeneficiaryEtherAllocation(address beneficiary) external view returns (uint256 amount) {
+        return s_beneficiaryEtherAllocation[beneficiary];
+    }
+
+    function getBeneficiaryErc20Allocation(address beneficiary, address token) external view returns (uint256 amount) {
+        return s_beneficiaryErc20Allocation[beneficiary][token];
+    }
+
+    function getBeneficiaryNftAllocation(address beneficiary, address token) external view returns (uint256 tokenId) {
+        return s_beneficiaryNftAllocation[beneficiary][token];
     }
 }

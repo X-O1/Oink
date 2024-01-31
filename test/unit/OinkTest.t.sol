@@ -12,8 +12,9 @@ contract OinkTest is Test {
     OinkCoin oinkCoin;
     OinkNft oinkNft;
 
-    address USER = makeAddr("user");
-    address OinkAddress = 0xA8452Ec99ce0C64f20701dB7dD3abDb607c00496;
+    address DECENDANT = makeAddr("user");
+    address BENEFICIARY = makeAddr("beneficiary");
+    address OinkCoinAddress = 0xA8452Ec99ce0C64f20701dB7dD3abDb607c00496;
     address OinkNftAddress = 0xBb2180ebd78ce97360503434eD37fcf4a1Df61c3;
     address UserAddrses = 0x6CA6d1e2D5347Bfab1d91e883F1915560e09129D;
 
@@ -27,25 +28,32 @@ contract OinkTest is Test {
         DeployOinkNft deployOinkNft = new DeployOinkNft();
         oinkNft = deployOinkNft.run();
 
-        vm.deal(USER, 10 ether);
+        vm.deal(DECENDANT, 10 ether);
+        vm.deal(BENEFICIARY, 10 ether);
     }
 
-    function testUserEtherDeposit() public {
-        vm.prank(USER);
-        oink.depositEther(1 ether);
+    function testUserEtherDepositAndThatBalancesUpdate() public {
+        vm.prank(DECENDANT);
+        oink.depositEther(BENEFICIARY, 1 ether);
+
+        assertEq(oink.getDecendantEtherBalance(DECENDANT), 1 ether);
     }
 
-    function testUserErc20Deposit() public {
-        vm.prank(USER);
+    function testUserErc20DepositAndThatBalancesUpdate() public {
+        vm.prank(DECENDANT);
         oinkCoin.approve(address(oink), 10);
-        vm.prank(USER);
-        oink.depositToken(OinkAddress, 10);
+        vm.prank(DECENDANT);
+        oink.depositErc20(BENEFICIARY, OinkCoinAddress, 10);
+
+        assertEq(oink.getDecendantErc20Balance(DECENDANT, OinkCoinAddress), 10);
     }
 
-    function testUserNftDeposit() public {
-        vm.prank(USER);
+    function testUserNftDepositAndThatBalancesUpdate() public {
+        vm.prank(DECENDANT);
         oinkNft.approve(address(oink), 1);
-        vm.prank(USER);
-        oink.depositNft(OinkNftAddress, 1);
+        vm.prank(DECENDANT);
+        oink.depositNft(BENEFICIARY, OinkNftAddress, 1);
+
+        assertEq(oink.getDecendantNftBalance(DECENDANT, OinkNftAddress), 1);
     }
 }
