@@ -65,7 +65,7 @@ contract OinkTest is Test {
         vm.prank(USER);
         oink.depositEther(BENEFICIARY2, 1);
         vm.prank(USER);
-        oink.getUsersBeneficiaries(USER);
+        oink.getListOfBeneficiaries(USER);
     }
 
     // function testWrittingAndRetrievingLetter() public {

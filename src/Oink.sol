@@ -2,7 +2,7 @@
 pragma solidity ^0.8.18;
 
 /**
- * @title Oink
+ * @title Oink!
  * @author https://github.com/X-O1
  * @notice Smart contract-based digital asset savings account with time locks and trustless inheritance execution.
  * Features:
@@ -64,7 +64,6 @@ contract Oink is ReentrancyGuard {
     function depositEther(address beneficiary, uint256 amount) external payable moreThanZero(amount) nonReentrant {
         s_etherBalance[msg.sender] += amount;
         s_beneficiaries[msg.sender].push(beneficiary);
-
         emit EtherDeposited(msg.sender, beneficiary, amount);
     }
 
@@ -75,7 +74,6 @@ contract Oink is ReentrancyGuard {
     {
         s_erc20Balance[msg.sender][token] += amount;
         s_beneficiaries[msg.sender].push(beneficiary);
-
         bool success = IERC20(token).transferFrom(msg.sender, address(this), amount);
         if (!success) {
             revert Oink__TransferFailed();
@@ -90,10 +88,17 @@ contract Oink is ReentrancyGuard {
     {
         s_nftBalance[msg.sender][token] += tokenId;
         s_beneficiaries[msg.sender].push(beneficiary);
-
         IERC721(token).transferFrom(msg.sender, address(this), tokenId);
         emit NftDeposited(msg.sender, beneficiary, token, tokenId);
     }
+
+    function withdrawEther(uint256 amount) external moreThanZero(amount) {}
+    function withdrawErc20(address token, uint256 amount) external moreThanZero(amount) {}
+    function withdrawNft(address token, uint256 tokenId) external moreThanZero(tokenId) {}
+
+    function inheritEther(address decendant) external onlyBeneficiary(decendant, msg.sender) {}
+    function inheritErc20(address decendant) external onlyBeneficiary(decendant, msg.sender) {}
+    function inheritNft(address decendant) external onlyBeneficiary(decendant, msg.sender) {}
 
     // function writeLetterToBeneficiary(address beneficiary, string memory letter) external {
     //     s_letterToBeneficiary[beneficiary] = letter;
@@ -112,7 +117,7 @@ contract Oink is ReentrancyGuard {
         return s_nftBalance[user][token];
     }
 
-    function getUsersBeneficiaries(address user) external view returns (address[] memory beneficiaries) {
+    function getListOfBeneficiaries(address user) external view returns (address[] memory beneficiaries) {
         return s_beneficiaries[user];
     }
 
