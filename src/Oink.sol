@@ -39,9 +39,10 @@ contract Oink is ReentrancyGuard {
     // mapping(address beneficiary => string letter) private s_letterToBeneficiary;
 
     // EVENTS
-    event TokenDeposited(address indexed user, address indexed beneficiary, address indexed token, uint256 amount);
-    event NftDeposited(address indexed user, address indexed beneficiary, address indexed nft, uint256 tokenId);
-    event EtherDeposited(address indexed user, address indexed beneficiary, uint256 indexed amount);
+    event EtherDeposited(address indexed user, uint256 indexed amount);
+    event Erc20Deposited(address indexed user, address indexed token, uint256 indexed amount);
+    event NftDeposited(address indexed user, address indexed nft, uint256 indexed tokenId);
+    event BeneficiaryAdded(address indexed user, address indexed beneficiary);
 
     // MODIFIERS
     modifier moreThanZero(uint256 amount) {
@@ -61,35 +62,24 @@ contract Oink is ReentrancyGuard {
     }
 
     // FUNCTIONS
-    function depositEther(address beneficiary, uint256 amount) external payable moreThanZero(amount) nonReentrant {
+    function depositEther(uint256 amount) public payable moreThanZero(amount) nonReentrant {
         s_etherBalance[msg.sender] += amount;
-        s_beneficiaries[msg.sender].push(beneficiary);
-        emit EtherDeposited(msg.sender, beneficiary, amount);
+        emit EtherDeposited(msg.sender, amount);
     }
 
-    function depositErc20(address beneficiary, address token, uint256 amount)
-        external
-        moreThanZero(amount)
-        nonReentrant
-    {
+    function depositErc20(address token, uint256 amount) public moreThanZero(amount) nonReentrant {
         s_erc20Balance[msg.sender][token] += amount;
-        s_beneficiaries[msg.sender].push(beneficiary);
         bool success = IERC20(token).transferFrom(msg.sender, address(this), amount);
         if (!success) {
             revert Oink__TransferFailed();
         }
-        emit TokenDeposited(msg.sender, beneficiary, token, amount);
+        emit Erc20Deposited(msg.sender, token, amount);
     }
 
-    function depositNft(address beneficiary, address token, uint256 tokenId)
-        external
-        moreThanZero(tokenId)
-        nonReentrant
-    {
+    function depositNft(address token, uint256 tokenId) public moreThanZero(tokenId) nonReentrant {
         s_nftBalance[msg.sender][token] += tokenId;
-        s_beneficiaries[msg.sender].push(beneficiary);
         IERC721(token).transferFrom(msg.sender, address(this), tokenId);
-        emit NftDeposited(msg.sender, beneficiary, token, tokenId);
+        emit NftDeposited(msg.sender, token, tokenId);
     }
 
     function withdrawEther(uint256 amount) external moreThanZero(amount) {}
@@ -99,6 +89,11 @@ contract Oink is ReentrancyGuard {
     function inheritEther(address decendant) external onlyBeneficiary(decendant, msg.sender) {}
     function inheritErc20(address decendant) external onlyBeneficiary(decendant, msg.sender) {}
     function inheritNft(address decendant) external onlyBeneficiary(decendant, msg.sender) {}
+
+    function addBeneficiary(address beneficiary) public {
+        s_beneficiaries[msg.sender].push(beneficiary);
+        emit BeneficiaryAdded(msg.sender, beneficiary);
+    }
 
     // function writeLetterToBeneficiary(address beneficiary, string memory letter) external {
     //     s_letterToBeneficiary[beneficiary] = letter;
