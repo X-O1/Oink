@@ -12,8 +12,9 @@ contract OinkTest is Test {
     OinkCoin oinkCoin;
     OinkNft oinkNft;
 
-    address DECENDANT = makeAddr("user");
+    address USER = makeAddr("user");
     address BENEFICIARY = makeAddr("beneficiary");
+    address BENEFICIARY2 = makeAddr("beneficiary2");
     address OinkCoinAddress = 0xA8452Ec99ce0C64f20701dB7dD3abDb607c00496;
     address OinkNftAddress = 0xBb2180ebd78ce97360503434eD37fcf4a1Df61c3;
     address UserAddrses = 0x6CA6d1e2D5347Bfab1d91e883F1915560e09129D;
@@ -28,32 +29,50 @@ contract OinkTest is Test {
         DeployOinkNft deployOinkNft = new DeployOinkNft();
         oinkNft = deployOinkNft.run();
 
-        vm.deal(DECENDANT, 10 ether);
+        vm.deal(USER, 10 ether);
         vm.deal(BENEFICIARY, 10 ether);
+        vm.deal(BENEFICIARY2, 10 ether);
     }
 
     function testUserEtherDepositAndThatBalancesUpdate() public {
-        vm.prank(DECENDANT);
+        vm.prank(USER);
         oink.depositEther(BENEFICIARY, 1 ether);
 
-        assertEq(oink.getDecendantEtherBalance(DECENDANT), 1 ether);
+        assertEq(oink.getEtherBalance(USER), 1 ether);
     }
 
     function testUserErc20DepositAndThatBalancesUpdate() public {
-        vm.prank(DECENDANT);
+        vm.prank(USER);
         oinkCoin.approve(address(oink), 10);
-        vm.prank(DECENDANT);
+        vm.prank(USER);
         oink.depositErc20(BENEFICIARY, OinkCoinAddress, 10);
 
-        assertEq(oink.getDecendantErc20Balance(DECENDANT, OinkCoinAddress), 10);
+        assertEq(oink.getErc20Balance(USER, OinkCoinAddress), 10);
     }
 
     function testUserNftDepositAndThatBalancesUpdate() public {
-        vm.prank(DECENDANT);
+        vm.prank(USER);
         oinkNft.approve(address(oink), 1);
-        vm.prank(DECENDANT);
+        vm.prank(USER);
         oink.depositNft(BENEFICIARY, OinkNftAddress, 1);
 
-        assertEq(oink.getDecendantNftBalance(DECENDANT, OinkNftAddress), 1);
+        assertEq(oink.getNftBalance(USER, OinkNftAddress), 1);
     }
+
+    function testUserAddingBeneficiaries() public {
+        vm.prank(USER);
+        oink.depositEther(BENEFICIARY, 1);
+        vm.prank(USER);
+        oink.depositEther(BENEFICIARY2, 1);
+        vm.prank(USER);
+        oink.getUsersBeneficiaries(USER);
+    }
+
+    // function testWrittingAndRetrievingLetter() public {
+    //     vm.prank(DECENDANT);
+    //     oink.writeLetterToBeneficiary(BENEFICIARY, "I love you.");
+
+    //     vm.prank(BENEFICIARY);
+    //     oink.getLetter(BENEFICIARY);
+    // }
 }

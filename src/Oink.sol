@@ -4,8 +4,12 @@ pragma solidity ^0.8.18;
 /**
  * @title Oink
  * @author https://github.com/X-O1
- * @notice Oink is an Estate planner for blockchain-based assets.
- * This contract will handle creation of decendant accounts, account funding, and inheritance execution.
+ * @notice Smart contract-based digital asset savings account with time locks and trustless inheritance execution.
+ * Features:
+ * - Savings Account with custom time locks ("Goal Locks"): Account balance is only available for withdrawal after reaching the user-set target.
+ * - Add beneficiaries and enable trustless inheritance execution for all accounts.
+ *
+ * This contract manages user and beneficiary accounts, and inheritance execution.
  */
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -18,6 +22,7 @@ contract Oink is ReentrancyGuard {
     error Oink__MustBeMoreThanZero();
     error Oink__TokenOrAmountNotApprovedForTransfer();
     error Oink__TransferFailed();
+    error Oink__NotBeneficiary();
 
     // TYPE DECLARATIONS
     struct Beneficiary {
@@ -25,19 +30,18 @@ contract Oink is ReentrancyGuard {
         address backupAddress;
     }
 
-    // STATE VARIABLESdecedant
-    mapping(address => uint256 amount) private s_decedantEtherBalance;
-    mapping(address decendant => mapping(address token => uint256 amount)) private s_decedantErc20Balance;
-    mapping(address decendant => mapping(address token => uint256 tokenId)) private s_decedantNftBalance;
+    // STATE VARIABLES
+    mapping(address => uint256 amount) private s_etherBalance;
+    mapping(address user => mapping(address token => uint256 amount)) private s_erc20Balance;
+    mapping(address user => mapping(address token => uint256 tokenId)) private s_nftBalance;
+    mapping(address user => address[] beneficiaries) private s_beneficiaries;
 
-    mapping(address beneficiary => uint256 amount) private s_beneficiaryEtherAllocation;
-    mapping(address beneficiary => mapping(address token => uint256 amount)) private s_beneficiaryErc20Allocation;
-    mapping(address beneficiary => mapping(address nft => uint256 tokenId)) private s_beneficiaryNftAllocation;
+    // mapping(address beneficiary => string letter) private s_letterToBeneficiary;
 
     // EVENTS
-    event TokenDeposited(address indexed decendant, address indexed beneficiary, address indexed token, uint256 amount);
-    event NftDeposited(address indexed decendant, address indexed beneficiary, address indexed nft, uint256 tokenId);
-    event EtherDeposited(address indexed decendant, address indexed beneficiary, uint256 indexed amount);
+    event TokenDeposited(address indexed user, address indexed beneficiary, address indexed token, uint256 amount);
+    event NftDeposited(address indexed user, address indexed beneficiary, address indexed nft, uint256 tokenId);
+    event EtherDeposited(address indexed user, address indexed beneficiary, uint256 indexed amount);
 
     // MODIFIERS
     modifier moreThanZero(uint256 amount) {
@@ -47,10 +51,20 @@ contract Oink is ReentrancyGuard {
         _;
     }
 
+    modifier onlyBeneficiary(address decendant, address beneficiary) {
+        for (uint256 i = 0; i < s_beneficiaries[decendant].length; i++) {
+            if (s_beneficiaries[decendant][i] != msg.sender) {
+                revert Oink__NotBeneficiary();
+            }
+        }
+        _;
+    }
+
     // FUNCTIONS
     function depositEther(address beneficiary, uint256 amount) external payable moreThanZero(amount) nonReentrant {
-        s_decedantEtherBalance[msg.sender] += amount;
-        s_beneficiaryEtherAllocation[beneficiary] += amount;
+        s_etherBalance[msg.sender] += amount;
+        s_beneficiaries[msg.sender].push(beneficiary);
+
         emit EtherDeposited(msg.sender, beneficiary, amount);
     }
 
@@ -59,8 +73,9 @@ contract Oink is ReentrancyGuard {
         moreThanZero(amount)
         nonReentrant
     {
-        s_decedantErc20Balance[msg.sender][token] += amount;
-        s_beneficiaryErc20Allocation[beneficiary][token] += amount;
+        s_erc20Balance[msg.sender][token] += amount;
+        s_beneficiaries[msg.sender].push(beneficiary);
+
         bool success = IERC20(token).transferFrom(msg.sender, address(this), amount);
         if (!success) {
             revert Oink__TransferFailed();
@@ -73,35 +88,35 @@ contract Oink is ReentrancyGuard {
         moreThanZero(tokenId)
         nonReentrant
     {
-        s_decedantNftBalance[msg.sender][token] += tokenId;
-        s_beneficiaryNftAllocation[beneficiary][token] += tokenId;
+        s_nftBalance[msg.sender][token] += tokenId;
+        s_beneficiaries[msg.sender].push(beneficiary);
 
         IERC721(token).transferFrom(msg.sender, address(this), tokenId);
         emit NftDeposited(msg.sender, beneficiary, token, tokenId);
     }
 
+    // function writeLetterToBeneficiary(address beneficiary, string memory letter) external {
+    //     s_letterToBeneficiary[beneficiary] = letter;
+    // }
+
     // VIEW FUNCTIONS
-    function getDecendantEtherBalance(address decendant) external view returns (uint256 amount) {
-        return s_decedantEtherBalance[decendant];
+    function getEtherBalance(address user) external view returns (uint256 amount) {
+        return s_etherBalance[user];
     }
 
-    function getDecendantErc20Balance(address decendant, address token) external view returns (uint256 amount) {
-        return s_decedantErc20Balance[decendant][token];
+    function getErc20Balance(address user, address token) external view returns (uint256 amount) {
+        return s_erc20Balance[user][token];
     }
 
-    function getDecendantNftBalance(address decendant, address token) external view returns (uint256 tokenId) {
-        return s_decedantNftBalance[decendant][token];
+    function getNftBalance(address user, address token) external view returns (uint256 tokenId) {
+        return s_nftBalance[user][token];
     }
 
-    function getBeneficiaryEtherAllocation(address beneficiary) external view returns (uint256 amount) {
-        return s_beneficiaryEtherAllocation[beneficiary];
+    function getUsersBeneficiaries(address user) external view returns (address[] memory beneficiaries) {
+        return s_beneficiaries[user];
     }
 
-    function getBeneficiaryErc20Allocation(address beneficiary, address token) external view returns (uint256 amount) {
-        return s_beneficiaryErc20Allocation[beneficiary][token];
-    }
-
-    function getBeneficiaryNftAllocation(address beneficiary, address token) external view returns (uint256 tokenId) {
-        return s_beneficiaryNftAllocation[beneficiary][token];
-    }
+    // function getLetter(address beneficiary) external view onlyBeneficiary(beneficiary) returns (string memory letter) {
+    //     return s_letterToBeneficiary[beneficiary];
+    // }
 }
