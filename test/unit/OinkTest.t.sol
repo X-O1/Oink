@@ -36,7 +36,7 @@ contract OinkTest is Test {
 
     function testUserEtherDepositAndThatBalancesUpdate() public {
         vm.prank(USER);
-        oink.depositEther(BENEFICIARY, 1 ether);
+        oink.depositEther(1 ether);
 
         assertEq(oink.getEtherBalance(USER), 1 ether);
     }
@@ -45,7 +45,7 @@ contract OinkTest is Test {
         vm.prank(USER);
         oinkCoin.approve(address(oink), 10);
         vm.prank(USER);
-        oink.depositErc20(BENEFICIARY, OinkCoinAddress, 10);
+        oink.depositErc20(OinkCoinAddress, 10);
 
         assertEq(oink.getErc20Balance(USER, OinkCoinAddress), 10);
     }
@@ -54,16 +54,16 @@ contract OinkTest is Test {
         vm.prank(USER);
         oinkNft.approve(address(oink), 1);
         vm.prank(USER);
-        oink.depositNft(BENEFICIARY, OinkNftAddress, 1);
+        oink.depositNft(OinkNftAddress, 1);
 
         assertEq(oink.getNftBalance(USER, OinkNftAddress), 1);
     }
 
     function testUserAddingBeneficiaries() public {
         vm.prank(USER);
-        oink.depositEther(BENEFICIARY, 1);
+        oink.addBeneficiary(BENEFICIARY);
         vm.prank(USER);
-        oink.depositEther(BENEFICIARY2, 1);
+        oink.addBeneficiary(BENEFICIARY2);
         vm.prank(USER);
         oink.getListOfBeneficiaries(USER);
     }
