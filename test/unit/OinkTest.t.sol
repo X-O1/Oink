@@ -34,9 +34,9 @@ contract OinkTest is Test {
 
     function testEtherDepositAndThatBalancesUpdate() public {
         vm.prank(USER);
-        oink.depositEther(1 ether);
+        oink.depositEther{value: 5 ether}();
 
-        assertEq(oink.getEtherBalance(USER), 1 ether);
+        assertEq(oink.getEtherBalance(USER), 5 ether);
     }
 
     function testErc20DepositAndThatBalancesUpdate() public {
@@ -50,7 +50,7 @@ contract OinkTest is Test {
 
     function testEtherWithdrawlAndBalancesUpdate() public {
         vm.prank(USER);
-        oink.depositEther(5 ether);
+        oink.depositEther{value: 5 ether}();
 
         vm.prank(USER);
         oink.withdrawEther(1 ether);
@@ -89,7 +89,7 @@ contract OinkTest is Test {
 
     function testInheritingEtherAndBalancesUpdate() public {
         vm.prank(USER);
-        oink.depositEther(5 ether);
+        oink.depositEther{value: 5 ether}();
 
         vm.expectRevert();
         vm.prank(BENEFICIARY);
@@ -118,12 +118,4 @@ contract OinkTest is Test {
         vm.prank(BENEFICIARY);
         oink.inheritErc20(USER, OinkCoinAddress, 10);
     }
-
-    // function testWrittingAndRetrievingLetter() public {
-    //     vm.prank(DECENDANT);
-    //     oink.writeLetterToBeneficiary(BENEFICIARY, "I love you.");
-
-    //     vm.prank(BENEFICIARY);
-    //     oink.getLetter(BENEFICIARY);
-    // }
 }
