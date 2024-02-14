@@ -4,12 +4,9 @@ pragma solidity ^0.8.20;
 /**
  * @title Oink!
  * @author https://github.com/X-O1
- * @notice Smart contract-based digital asset savings account with time locks and trustless inheritance execution.
- * Features:
- * - Savings Account with custom time locks ("Goal Locks"): Account balance is only available for withdrawal after reaching the user-set target.
- * - Add beneficiaries and enable trustless inheritance execution for all accounts.
+ * @notice Smart contract-based savings account with trustless inheritance execution.
  *
- * This contract manages user and beneficiary accounts, and inheritance execution.
+ * This contract manages user and beneficiary accounts and inheritance execution.
  */
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -18,7 +15,6 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol
 contract Oink is ReentrancyGuard {
     //ERRORS
     error Oink__MustBeMoreThanZero();
-    error Oink___TokenOr_AmountNotApprovedForTransfer();
     error Oink__TransferFailed();
     error Oink__NotBeneficiary();
 
@@ -29,16 +25,9 @@ contract Oink is ReentrancyGuard {
     }
 
     // STATE VARIABLES
-
     mapping(address user => uint256 amount) private s_etherBalance;
     mapping(address user => mapping(address token => uint256 amount)) private s_erc20Balance;
     mapping(address user => address[] beneficiaries) private s_beneficiaries;
-
-    mapping(address user => uint256 timestamp) private s_timeOfDeposit;
-    mapping(address user => uint256 amountMinimun) private s_minimun_AmountToUnlockFunds;
-    mapping(address user => uint256 timeMinimun) private s_minimunTimeToUnlockFunds;
-
-    // mapping(address beneficiary => string letter) private s_letterToBeneficiary;
 
     // EVENTS
     event EtherDeposited(address indexed user, uint256 indexed amount);
@@ -68,12 +57,15 @@ contract Oink is ReentrancyGuard {
     }
 
     // FUNCTIONS
-    function depositEther(uint256 _amount) public payable moreThanZero(_amount) {
-        s_etherBalance[msg.sender] += _amount;
-        emit EtherDeposited(msg.sender, _amount);
+
+    receive() external payable {}
+
+    function depositEther() external payable moreThanZero(msg.value) {
+        s_etherBalance[msg.sender] += msg.value;
+        emit EtherDeposited(msg.sender, msg.value);
     }
 
-    function withdrawEther(uint256 _amount) public moreThanZero(_amount) nonReentrant {
+    function withdrawEther(uint256 _amount) external moreThanZero(_amount) nonReentrant {
         require(s_etherBalance[msg.sender] >= _amount, "Insufficient Funds");
 
         s_etherBalance[msg.sender] -= _amount;
@@ -86,28 +78,7 @@ contract Oink is ReentrancyGuard {
         emit EtherWithdrawl(msg.sender, _amount);
     }
 
-    function depositErc20(address _token, uint256 _amount) public moreThanZero(_amount) {
-        s_erc20Balance[msg.sender][_token] += _amount;
-        bool success = IERC20(_token).transferFrom(msg.sender, address(this), _amount);
-        if (!success) {
-            revert Oink__TransferFailed();
-        }
-        emit Erc20Deposited(msg.sender, _token, _amount);
-    }
-
-    function withdrawErc20(address _token, uint256 _amount) public moreThanZero(_amount) nonReentrant {
-        require(s_erc20Balance[msg.sender][_token] >= _amount, "Insufficient Funds");
-
-        s_erc20Balance[msg.sender][_token] -= _amount;
-        bool success = IERC20(_token).transfer(msg.sender, _amount);
-        if (!success) {
-            revert Oink__TransferFailed();
-        }
-
-        emit Erc20Withdrawl(msg.sender, _token, _amount);
-    }
-
-    function inheritEther(address _decendant, uint256 _amount) public onlyBeneficiary(_decendant) nonReentrant {
+    function inheritEther(address _decendant, uint256 _amount) external onlyBeneficiary(_decendant) nonReentrant {
         require(s_etherBalance[_decendant] >= _amount, "Insufficient Funds");
         s_etherBalance[_decendant] -= _amount;
 
@@ -119,8 +90,32 @@ contract Oink is ReentrancyGuard {
         emit EtherInherited(msg.sender, _amount);
     }
 
+    function depositErc20(address _token, uint256 _amount) external moreThanZero(_amount) {
+        s_erc20Balance[msg.sender][_token] += _amount;
+
+        require(IERC20(_token).allowance(msg.sender, address(this)) >= _amount, "Amount not approved for transfer");
+
+        bool success = IERC20(_token).transferFrom(msg.sender, address(this), _amount);
+        if (!success) {
+            revert Oink__TransferFailed();
+        }
+        emit Erc20Deposited(msg.sender, _token, _amount);
+    }
+
+    function withdrawErc20(address _token, uint256 _amount) external moreThanZero(_amount) nonReentrant {
+        require(s_erc20Balance[msg.sender][_token] >= _amount, "Insufficient Funds");
+
+        s_erc20Balance[msg.sender][_token] -= _amount;
+        bool success = IERC20(_token).transfer(msg.sender, _amount);
+        if (!success) {
+            revert Oink__TransferFailed();
+        }
+
+        emit Erc20Withdrawl(msg.sender, _token, _amount);
+    }
+
     function inheritErc20(address _decendant, address _token, uint256 _amount)
-        public
+        external
         onlyBeneficiary(_decendant)
         nonReentrant
     {
@@ -136,16 +131,10 @@ contract Oink is ReentrancyGuard {
         emit Erc20Inherited(msg.sender, _token, _amount);
     }
 
-    function addBeneficiary(address beneficiary) public {
+    function addBeneficiary(address beneficiary) external {
         s_beneficiaries[msg.sender].push(beneficiary);
         emit BeneficiaryAdded(msg.sender, beneficiary);
     }
-
-    // function writeLetterToBeneficiary(address beneficiary, string memory letter) external {
-    //     s_letterToBeneficiary[beneficiary] = letter;
-    // }
-
-    // HELPER FUNCTIONS
 
     // VIEW FUNCTIONS
     function getEtherBalance(address user) external view returns (uint256 _amount) {
@@ -159,10 +148,4 @@ contract Oink is ReentrancyGuard {
     function getListOfBeneficiaries(address user) external view returns (address[] memory beneficiaries) {
         return s_beneficiaries[user];
     }
-
-    // function getLetter(address beneficiary) external view onlyBeneficiary(beneficiary) returns (string memory letter) {
-    //     return s_letterToBeneficiary[beneficiary];
-    // }
-
-    // PURE FUNCTIONS
 }
